@@ -1,0 +1,329 @@
+/**
+ * LandingPage — "The Leather-Bound Journal"
+ * Design: Tactile Realism Brutalist Skeuomorphism
+ *
+ * A private study desk with a heavy leather-bound journal centered on it.
+ * The journal cover IS the auth card. Inputs look like cream paper labels
+ * pressed into the leather. The CTA is a wax seal stamp.
+ *
+ * States:
+ *   login    → closed cover, sign-in form
+ *   register → cover "flips open" revealing sign-up form on cream paper
+ *
+ * Assets:
+ *   Desk BG:      https://d2xsxph8kpxj0f.cloudfront.net/...desk-bg.webp
+ *   Leather cover: https://d2xsxph8kpxj0f.cloudfront.net/...leather-cover.webp
+ */
+
+import { useState, useRef } from "react";
+import { useLocation } from "wouter";
+
+const DESK_BG =
+  "https://d2xsxph8kpxj0f.cloudfront.net/100546762/oVX8wu43y9wQaUoReJ9f4a/desk-bg-9pwG7TCBTXFx4DuRWiXBs4.webp";
+const LEATHER_COVER =
+  "https://d2xsxph8kpxj0f.cloudfront.net/100546762/oVX8wu43y9wQaUoReJ9f4a/leather-cover-8xMKojobBJTdMr2ndjSNSC.webp";
+
+// ── SVG Icons (inline, no external dep needed) ────────────────────────────────
+
+function UserIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+      <circle cx="12" cy="7" r="4"/>
+    </svg>
+  );
+}
+
+function KeyIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="7.5" cy="15.5" r="5.5"/>
+      <path d="M21 2l-9.6 9.6"/>
+      <path d="M15.5 7.5l3 3L22 7l-3-3"/>
+    </svg>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="20" height="16" x="2" y="4" rx="2"/>
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+    </svg>
+  );
+}
+
+function BookOpenIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+    </svg>
+  );
+}
+
+function LockIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+    </svg>
+  );
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+type AuthMode = "login" | "register";
+
+export default function LandingPage() {
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [, setLocation] = useLocation();
+
+  // Form state
+  const [username, setUsername] = useState("");
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm]   = useState("");
+  const [sealPressed, setSealPressed] = useState(false);
+  const [inkVisible, setInkVisible]   = useState(false);
+
+  const switchMode = (next: AuthMode) => {
+    if (next === mode || isFlipping) return;
+    setIsFlipping(true);
+    setTimeout(() => {
+      setMode(next);
+      setIsFlipping(false);
+      setUsername(""); setEmail(""); setPassword(""); setConfirm("");
+    }, 500);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSealPressed(true);
+    setInkVisible(true);
+    setTimeout(() => {
+      setSealPressed(false);
+      // Navigate to the binder after a brief dramatic pause
+      setTimeout(() => setLocation("/binder"), 600);
+    }, 400);
+  };
+
+  const isLogin = mode === "login";
+
+  return (
+    <div className="landing-desk" style={{ backgroundImage: `url(${DESK_BG})` }}>
+      {/* Vignette overlay */}
+      <div className="landing-vignette" />
+
+      {/* Ambient dust particles */}
+      <div className="landing-particles" aria-hidden="true">
+        {Array.from({ length: 12 }).map((_, i) => (
+          <div key={i} className="landing-particle" style={{
+            left: `${8 + i * 7.5}%`,
+            animationDelay: `${i * 0.7}s`,
+            animationDuration: `${6 + (i % 4) * 2}s`,
+          }} />
+        ))}
+      </div>
+
+      {/* ── The Journal ──────────────────────────────────────────────────── */}
+      <div
+        className={`journal-wrapper ${isFlipping ? "journal-flipping" : ""}`}
+        role="main"
+        aria-label="Authentication journal"
+      >
+        {/* Book thickness shadow layers (pages) */}
+        <div className="journal-pages-right" />
+        <div className="journal-pages-bottom" />
+
+        {/* The leather cover */}
+        <div
+          className="journal-cover"
+          style={{ backgroundImage: `url(${LEATHER_COVER})` }}
+        >
+          {/* Leather overlay for color tinting */}
+          <div className="journal-leather-overlay" />
+
+          {/* Stitching border */}
+          <div className="journal-stitching" aria-hidden="true" />
+
+          {/* Corner reinforcements */}
+          <div className="journal-corner journal-corner-tl" />
+          <div className="journal-corner journal-corner-tr" />
+          <div className="journal-corner journal-corner-bl" />
+          <div className="journal-corner journal-corner-br" />
+
+          {/* ── Embossed Title Plate ─────────────────────────────────── */}
+          <div className="journal-title-plate">
+            <div className="journal-title-plate-inner">
+              <div className="journal-logo-icon">
+                <BookOpenIcon />
+              </div>
+              <h1 className="journal-title">MyBinder</h1>
+              <p className="journal-subtitle">
+                {isLogin ? "Private Study — Members Only" : "Begin Your Journey"}
+              </p>
+            </div>
+          </div>
+
+          {/* ── Auth Form ────────────────────────────────────────────── */}
+          <div className={`journal-form-area ${isFlipping ? "journal-form-fading" : ""}`}>
+
+            {/* Paper label — form fields */}
+            <div className={`journal-paper-label ${!isLogin ? "journal-paper-label-open" : ""}`}>
+
+              {/* Register: Name field */}
+              {!isLogin && (
+                <div className="journal-field-group" style={{ animationDelay: "0.05s" }}>
+                  <label className="journal-field-label">Full Name</label>
+                  <div className="journal-input-wrapper">
+                    <span className="journal-input-icon"><UserIcon /></span>
+                    <input
+                      type="text"
+                      className="journal-input"
+                      placeholder="Your name..."
+                      value={username}
+                      onChange={e => setUsername(e.target.value)}
+                      autoComplete="name"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Login: Username / Register: Email */}
+              <div className="journal-field-group" style={{ animationDelay: isLogin ? "0s" : "0.1s" }}>
+                <label className="journal-field-label">
+                  {isLogin ? "Username or Email" : "Email Address"}
+                </label>
+                <div className="journal-input-wrapper">
+                  <span className="journal-input-icon">
+                    {isLogin ? <UserIcon /> : <MailIcon />}
+                  </span>
+                  <input
+                    type={isLogin ? "text" : "email"}
+                    className="journal-input"
+                    placeholder={isLogin ? "Enter your name..." : "your@email.com"}
+                    value={isLogin ? username : email}
+                    onChange={e => isLogin ? setUsername(e.target.value) : setEmail(e.target.value)}
+                    autoComplete={isLogin ? "username" : "email"}
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div className="journal-field-group" style={{ animationDelay: isLogin ? "0.05s" : "0.15s" }}>
+                <label className="journal-field-label">Secret Passphrase</label>
+                <div className="journal-input-wrapper">
+                  <span className="journal-input-icon"><KeyIcon /></span>
+                  <input
+                    type="password"
+                    className="journal-input"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    autoComplete={isLogin ? "current-password" : "new-password"}
+                  />
+                </div>
+              </div>
+
+              {/* Register: Confirm password */}
+              {!isLogin && (
+                <div className="journal-field-group" style={{ animationDelay: "0.2s" }}>
+                  <label className="journal-field-label">Confirm Passphrase</label>
+                  <div className="journal-input-wrapper">
+                    <span className="journal-input-icon"><KeyIcon /></span>
+                    <input
+                      type="password"
+                      className="journal-input"
+                      placeholder="••••••••"
+                      value={confirm}
+                      onChange={e => setConfirm(e.target.value)}
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Wax Seal Submit ──────────────────────────────────── */}
+            <div className="journal-seal-area">
+              <button
+                className={`journal-wax-seal ${sealPressed ? "journal-wax-seal-pressed" : ""} ${inkVisible ? "journal-wax-seal-inked" : ""}`}
+                onClick={handleSubmit}
+                type="button"
+                aria-label={isLogin ? "Sign In" : "Create Account"}
+              >
+                <div className="journal-seal-outer">
+                  <div className="journal-seal-inner">
+                    <div className="journal-seal-emblem">
+                      <LockIcon />
+                    </div>
+                    <span className="journal-seal-text">
+                      {isLogin ? "OPEN" : "SEAL"}
+                    </span>
+                  </div>
+                </div>
+                {inkVisible && <div className="journal-seal-ink-ring" />}
+              </button>
+
+              <p className="journal-seal-label">
+                {isLogin ? "Press seal to enter" : "Press to bind your account"}
+              </p>
+            </div>
+
+            {/* ── Mode toggle ──────────────────────────────────────── */}
+            <div className="journal-toggle-area">
+              {isLogin ? (
+                <p className="journal-toggle-text">
+                  Don't have a notebook?{" "}
+                  <button
+                    className="journal-toggle-link"
+                    onClick={() => switchMode("register")}
+                    type="button"
+                  >
+                    Register here
+                  </button>
+                </p>
+              ) : (
+                <p className="journal-toggle-text">
+                  Already a member?{" "}
+                  <button
+                    className="journal-toggle-link"
+                    onClick={() => switchMode("login")}
+                    type="button"
+                  >
+                    Sign in instead
+                  </button>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* ── Clasp / Lock ornament ────────────────────────────── */}
+          <div className="journal-clasp" aria-hidden="true">
+            <div className="journal-clasp-strap-left" />
+            <div className="journal-clasp-buckle">
+              <div className="journal-clasp-buckle-inner">
+                <div className="journal-clasp-prong" />
+              </div>
+            </div>
+            <div className="journal-clasp-strap-right" />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desk accessories ─────────────────────────────────────────────── */}
+      <div className="landing-quill" aria-hidden="true">
+        <svg viewBox="0 0 80 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M40 190 C38 150, 20 80, 5 10 C25 40, 55 40, 75 10 C60 80, 42 150, 40 190Z"
+            fill="rgba(245,235,200,0.7)" stroke="rgba(180,150,80,0.5)" strokeWidth="0.5"/>
+          <path d="M40 190 L40 120" stroke="rgba(120,90,40,0.6)" strokeWidth="1.5"/>
+        </svg>
+      </div>
+
+      {/* Candle glow */}
+      <div className="landing-candle-glow" aria-hidden="true" />
+    </div>
+  );
+}
