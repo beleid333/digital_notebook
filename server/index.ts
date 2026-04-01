@@ -54,11 +54,13 @@ async function startServer() {
     }
   });
 
-  // Save a new note
+    // Save a new note
   app.post("/api/notes", async (req, res) => {
     try {
       const { title, content, notebook, tags, _id } = req.body;
-      const noteData = {
+      
+      // Base note data (shared by create & update)
+      const baseNoteData = {
         title,
         content,
         notebook,
@@ -68,17 +70,20 @@ async function startServer() {
 
       let result;
       if (_id) {
-        // Update existing note
+        // ✅ Update existing note (keep original createdAt)
         result = await db.collection(collectionName).updateOne(
           { _id: new ObjectId(_id) },
-          { $set: { ...noteData, updatedAt: new Date().toISOString() } }
+          { $set: { ...baseNoteData, updatedAt: new Date().toISOString() } }
         );
-        res.json({ _id, ...noteData });
+        res.json({ _id, ...baseNoteData });
       } else {
-        // Create new note
-        noteData.createdAt = new Date().toISOString();
-        result = await db.collection(collectionName).insertOne(noteData);
-        res.json({ _id: result.insertedId, ...noteData });
+        // ✅ Create new note (add createdAt)
+        const newNote = {
+          ...baseNoteData,
+          createdAt: new Date().toISOString(), // ✅ Only for new notes
+        };
+        result = await db.collection(collectionName).insertOne(newNote);
+        res.json({ _id: result.insertedId, ...newNote });
       }
     } catch (error) {
       console.error("Error saving note:", error);

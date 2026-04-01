@@ -1,17 +1,11 @@
 /**
  * Home — The Digital Ring-Binder
  * Design: Tactile Realism Brutalist Skeuomorphism
- *
- * Assembles the full binder layout:
- *   [Desk surface]
- *     [Bookshelf sidebar] [Binder body]
- *                           [BinderHeader]
- *                           [Tab bar]
- *                           [Binding strip + Paper canvas]
  */
 
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useBinder } from "@/contexts/BinderContext";
+import { useBinder } from "@/contexts/BinderContext"; // ✅ Already imported
 import Sidebar from "@/components/Sidebar";
 import TabBar from "@/components/TabBar";
 import Canvas from "@/components/Canvas";
@@ -20,6 +14,8 @@ import { LogOut } from "lucide-react";
 
 export default function Home() {
   const [, setLocation] = useLocation();
+  
+  // ✅ ADD THIS: Get binder data from context
   const {
     notebooks,
     activeNotebookId,
@@ -35,6 +31,16 @@ export default function Home() {
     deleteSection,
     updatePage,
   } = useBinder();
+  
+  // ✅ Mobile detection (optional, for future use)
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   return (
     <div
@@ -144,7 +150,9 @@ export default function Home() {
       </div>
 
       {/* ── Close binder / back to cover ──────────────────────────────── */}
-      <button
+      {/* ⚠️ This inline style for @media won't work in React - remove or use CSS class */}
+      {/* ✅ REMOVED: Close binder button - now only in sidebar bottom */}
+      {/*<button
         onClick={() => setLocation("/")}
         title="Close binder — return to cover"
         style={{
@@ -167,6 +175,8 @@ export default function Home() {
           boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
           transition: "all 0.15s ease",
           zIndex: 50,
+          // ✅ Hide on mobile using inline style check
+          display: isMobile ? "none" : "flex", // ✅ This works!
         }}
         onMouseEnter={e => {
           (e.currentTarget as HTMLButtonElement).style.background = "rgba(60,30,8,0.75)";
@@ -180,6 +190,7 @@ export default function Home() {
         <LogOut size={12} />
         Close Binder
       </button>
+      */}
     </div>
   );
 }
