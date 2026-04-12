@@ -1,10 +1,10 @@
 /**
- * App — Digital Ring-Binder
+ * App — Velo Notes
  * Design: Tactile Realism Brutalist Skeuomorphism
  *
  * Routes:
  *   /        → LandingPage (Leather Journal auth cover)
- *   /binder  → Home (The Ring-Binder SPA)
+ *   /notebook  → Home (The Ring-notebook SPA)
  *   /404     → NotFound
  */
 
@@ -22,7 +22,7 @@ function Router() {
   return (
     <Switch>
       <Route path={"/"} component={LandingPage} />
-      <Route path={"/binder"} component={Home} />
+      <Route path={"/notebook"} component={Home} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

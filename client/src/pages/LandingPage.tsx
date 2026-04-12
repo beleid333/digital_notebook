@@ -104,8 +104,8 @@ export default function LandingPage() {
     setInkVisible(true);
     setTimeout(() => {
       setSealPressed(false);
-      // Navigate to the binder after a brief dramatic pause
-      setTimeout(() => setLocation("/binder"), 600);
+      // Navigate to the notebook after a brief dramatic pause
+      setTimeout(() => setLocation("/notebook"), 600);
     }, 400);
   };
 
@@ -160,7 +160,7 @@ export default function LandingPage() {
               <div className="journal-logo-icon">
                 <BookOpenIcon />
               </div>
-              <h1 className="journal-title">MyBinder</h1>
+              <h1 className="journal-title">MyNotebook</h1>
               <p className="journal-subtitle">
                 {isLogin ? "Private Study — Members Only" : "Begin Your Journey"}
               </p>

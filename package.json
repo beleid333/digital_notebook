@@ -1,5 +1,7 @@
 {
-  "name": "digital-ring-binder",
+  "name": "velo-notes",
+  "displayName": "Velo Notes",       
+  "description": "A simplified digital notebook. Notes at the speed of thought.",
   "version": "1.0.0",
   "type": "module",
   "license": "MIT",

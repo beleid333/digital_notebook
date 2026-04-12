@@ -155,13 +155,13 @@ export default function Sidebar({
           </button>
         </div>
 
-        {/* ✅ "Close binder" button - moved to bottom */}
+        {/* ✅ "Close Notebook" button - moved to bottom */}
         <div style={{ padding: "8px 10px 16px" }}>
           <button
             className="add-notebook-btn"
             onClick={() => {
-              // Your close binder logic here
-              console.log("Close binder clicked");
+              // Your  Close Notebook logic here
+              console.log("Close Notebook clicked");
               // Add your close handler
             }}
             style={{
@@ -170,7 +170,7 @@ export default function Sidebar({
             }}
           >
             <BookOpen size={12} />
-            Close Binder
+            Close Notebook
           </button>
         </div>
       </aside>

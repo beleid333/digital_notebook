@@ -1,5 +1,5 @@
 /**
- * Digital Ring-Binder — Core Data Model
+ * DVelo Notes — Core Data Model
  * Design: Tactile Realism Brutalist Skeuomorphism
  *
  * Notebooks → Sections (Tabs) → Pages (Canvas content)
@@ -118,7 +118,7 @@ export const INITIAL_PAGES: Record<string, Page> = {
     id: "page-sec-1",
     sectionId: "sec-1",
     title: "Project Overview",
-    content: `Welcome to the Digital Ring-Binder!\n\nThis is your Projects notebook. Use the tabs above to navigate between sections.\n\nClick anywhere on the paper to add a sticky note, or use the toolbar to add images and text.`,
+    content: `Welcome to the Velo Notes!\n\nThis is your Projects notebook. Use the tabs above to navigate between sections.\n\nClick anywhere on the paper to add a sticky note, or use the toolbar to add images and text.`,
     stickyNotes: [
       {
         id: "sn-1",

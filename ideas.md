@@ -1,4 +1,4 @@
-# Digital Ring-Binder — Design Brainstorm
+# Velo Notes — Design Brainstorm
 
 ## Approach 1: Tactile Realism — Brutalist Skeuomorphism
 <response>
@@ -13,10 +13,10 @@
 
 **Color Philosophy**: Warm amber wood (#8B5E3C → #5C3A1E), cream paper (#FFF8E7), steel ring-metal (#B0B0B0 → #707070), ink blue lines (#C8D8E8), red margin (#E8A0A0). The palette is pulled from actual office supply photography — nothing invented.
 
-**Layout Paradigm**: Three-column asymmetric split: narrow bookshelf (180px) | wide binder body (flex) with binding strip on left edge. Tabs protrude above the paper like physical dividers.
+**Layout Paradigm**: Three-column asymmetric split: narrow bookshelf (180px) | wide notebook body (flex) with binding strip on left edge. Tabs protrude above the paper like physical dividers.
 
 **Signature Elements**:
-- SVG-rendered binder rings with metallic radial gradient and cast shadow
+- SVG-rendered notebook rings with metallic radial gradient and cast shadow
 - CSS wood-grain texture using layered linear-gradients at varying angles
 - Lined paper using repeating-linear-gradient with a red margin line
 
@@ -42,7 +42,7 @@
 
 **Color Philosophy**: Olive green (#6B7C45), burnt orange (#C4622D), cream (#F5F0E8), charcoal (#2D2D2D). Inspired by vintage Penguin book covers.
 
-**Layout Paradigm**: Centered binder on a linen-textured desk surface. Tabs use geometric chevron shapes instead of rounded rectangles.
+**Layout Paradigm**: Centered notebook on a linen-textured desk surface. Tabs use geometric chevron shapes instead of rounded rectangles.
 
 **Signature Elements**:
 - Halftone dot pattern on sidebar
@@ -71,7 +71,7 @@
 
 **Color Philosophy**: Dark leather brown (#3D2B1F), aged paper (#F2E8D0), rust red (#8B3A2A), faded ink (#4A4035). Inspired by antique journals.
 
-**Layout Paradigm**: Single centered binder on a dark leather desk. Tabs are torn paper edges.
+**Layout Paradigm**: Single centered notebook on a dark leather desk. Tabs are torn paper edges.
 
 **Signature Elements**:
 - Torn paper edge CSS effect on tabs

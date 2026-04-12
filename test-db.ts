@@ -19,7 +19,7 @@ if (!uri) {
 const client = new MongoClient(uri);
 
 // Define database and collection names
-const dbName = 'digital_binder';
+const dbName = 'digital_notebook';
 const collectionName = 'notes';
 
 async function run() {
@@ -31,7 +31,7 @@ async function run() {
     const database = client.db(dbName);
     const notes = database.collection(collectionName);
 
-    // 3. Insert 10 realistic documents (Digital Binder Notes)
+    // 3. Insert 10 realistic documents (Digital notebook Notes)
     // We generate different timestamps to simulate notes created over time
     console.log(`\n📝 Inserting 10 sample notes into '${collectionName}'...`);
     

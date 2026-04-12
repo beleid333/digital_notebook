@@ -1,5 +1,5 @@
 /**
- * Home — The Digital Ring-Binder
+ * Home — The Velo Notes
  * Design: Tactile Realism Brutalist Skeuomorphism
  */
 
@@ -146,15 +146,15 @@ export default function Home() {
           userSelect: "none",
         }}
       >
-        DIGITAL RING-BINDER v1.0
+        Velo Notes v1.0
       </div>
 
-      {/* ── Close binder / back to cover ──────────────────────────────── */}
+      {/* ── Close Notebook / back to cover ──────────────────────────────── */}
       {/* ⚠️ This inline style for @media won't work in React - remove or use CSS class */}
-      {/* ✅ REMOVED: Close binder button - now only in sidebar bottom */}
+      {/* ✅ REMOVED: Close Notebook button - now only in sidebar bottom */}
       {/*<button
         onClick={() => setLocation("/")}
-        title="Close binder — return to cover"
+        title="Close Notebook — return to cover"
         style={{
           position: "fixed",
           top: 12,
@@ -188,7 +188,7 @@ export default function Home() {
         }}
       >
         <LogOut size={12} />
-        Close Binder
+        Close Notebook
       </button>
       */}
     </div>
