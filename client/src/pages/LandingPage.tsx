@@ -18,6 +18,8 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 
+const VELO_LOGO = "/velo-notes-logo.png";
+
 const DESK_BG =
   "https://d2xsxph8kpxj0f.cloudfront.net/100546762/oVX8wu43y9wQaUoReJ9f4a/desk-bg-9pwG7TCBTXFx4DuRWiXBs4.webp";
 const LEATHER_COVER =
@@ -154,18 +156,43 @@ export default function LandingPage() {
           <div className="journal-corner journal-corner-bl" />
           <div className="journal-corner journal-corner-br" />
 
-          {/* ── Embossed Title Plate ─────────────────────────────────── */}
-          <div className="journal-title-plate">
-            <div className="journal-title-plate-inner">
-              <div className="journal-logo-icon">
-                <BookOpenIcon />
-              </div>
-              <h1 className="journal-title">MyNotebook</h1>
-              <p className="journal-subtitle">
-                {isLogin ? "Private Study — Members Only" : "Begin Your Journey"}
-              </p>
-            </div>
-          </div>
+       {/* ── Velo Notes Title Plate ─────────────────────────────────── */}
+<div className="journal-title-plate">
+  <div className="journal-title-plate-inner" style={{
+    background: "linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(184, 134, 11, 0.1) 100%)",
+    border: "1px solid rgba(212, 175, 55, 0.3)",
+    borderRadius: "8px",
+    padding: "20px 24px",
+    textAlign: "center",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.2)"
+  }}>
+    {/* Logo centered */}
+    <div className="journal-logo-icon" style={{ marginBottom: 12 }}>
+      <img 
+        src={VELO_LOGO} 
+        alt="Velo Notes" 
+        style={{ 
+          width: 100, 
+          height: "auto",
+          maxWidth: "100%",
+          display: "inline-block",
+          filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))"
+        }} 
+      />
+    </div>
+    
+    {/* Subtitle */}
+    <p className="journal-subtitle" style={{ 
+      marginTop: 8,
+      fontSize: 9,
+      letterSpacing: "0.12em",
+      color: "rgba(220, 190, 110, 0.6)",
+      textShadow: "0 1px 2px rgba(0,0,0,0.6)"
+    }}>
+      {isLogin ? "PRIVATE NOTES — MEMBERS ONLY" : "BEGIN YOUR JOURNEY"}
+    </p>
+  </div>
+</div>
 
           {/* ── Auth Form ────────────────────────────────────────────── */}
           <div className={`journal-form-area ${isFlipping ? "journal-form-fading" : ""}`}>
@@ -272,6 +299,19 @@ export default function LandingPage() {
               </p>
             </div>
 
+                      {/* ── Clasp / Lock ornament ────────────────────────────── */}
+          <div className="journal-clasp" aria-hidden="true">
+            <div className="journal-clasp-strap-left" />
+            <div className="journal-clasp-buckle">
+              <div className="journal-clasp-buckle-inner">
+                <div className="journal-clasp-prong" />
+              </div>
+            </div>
+            <div className="journal-clasp-strap-right" />
+          </div>
+        </div>
+      </div>
+
             {/* ── Mode toggle ──────────────────────────────────────── */}
             <div className="journal-toggle-area">
               {isLogin ? (
@@ -300,18 +340,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* ── Clasp / Lock ornament ────────────────────────────── */}
-          <div className="journal-clasp" aria-hidden="true">
-            <div className="journal-clasp-strap-left" />
-            <div className="journal-clasp-buckle">
-              <div className="journal-clasp-buckle-inner">
-                <div className="journal-clasp-prong" />
-              </div>
-            </div>
-            <div className="journal-clasp-strap-right" />
-          </div>
-        </div>
-      </div>
+
 
       {/* ── Desk accessories ─────────────────────────────────────────────── */}
       <div className="landing-quill" aria-hidden="true">
