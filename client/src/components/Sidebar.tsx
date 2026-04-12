@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, BookOpen, Menu, X } from "lucide-react";
+import { useLocation } from "wouter";
 import type { Notebook } from "@/data/binderData";
 
 interface SidebarProps {
@@ -32,6 +33,8 @@ export default function Sidebar({
   onAddNotebook,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
+
+  const [, setLocation] = useLocation();
   
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768);
@@ -163,6 +166,7 @@ export default function Sidebar({
               // Your  Close Notebook logic here
               console.log("Close Notebook clicked");
               // Add your close handler
+              setLocation("/");
             }}
             style={{
               background: "rgba(0,0,0,0.3)",
