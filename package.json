@@ -1,6 +1,6 @@
 {
   "name": "velo-notes",
-  "displayName": "Velo Notes",       
+  "displayName": "Velo Notes",
   "description": "A simplified digital notebook. Notes at the speed of thought.",
   "version": "1.0.0",
   "type": "module",
@@ -43,6 +43,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "axios": "^1.12.0",
+    "bcrypt": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
@@ -52,6 +53,7 @@
     "express": "^4.21.2",
     "framer-motion": "^12.23.22",
     "input-otp": "^1.4.2",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.453.0",
     "mongodb": "^7.1.1",
     "nanoid": "^5.1.5",

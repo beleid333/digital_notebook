@@ -6,9 +6,11 @@ import { fileURLToPath } from "url";
 import { MongoClient, ObjectId } from "mongodb";
 import cors from "cors";
 import * as dotenv from "dotenv";
+import jwt from "jsonwebtoken";
+import { hashPassword, comparePassword } from './models/User.js';
 
 dotenv.config();
-
+const JWT_SECRET = process.env.JWT_SECRET || "your-fallback-secret-change-in-production ";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -102,6 +104,177 @@ async function startServer() {
       res.status(500).json({ error: "Failed to delete note" });
     }
   });
+
+  // ── Authentication Routes ──────────────────────────────────────────────
+
+// REGISTER: Create new user
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+    
+    // Validation
+    if (!email || !username || !password) {
+      return res.status(400).json({ error: 'Email, username, and password are required' });
+    }
+    
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    
+    // Check if user exists
+    const existingUser = await db.collection('users').findOne({ 
+      $or: [{ email }, { username }] 
+    });
+    
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email or username already taken' });
+    }
+    
+    // Hash password
+    const hashedPassword = await hashPassword(password);
+    
+    // Create user with default binder data
+    const newUser = {
+      email,
+      username,
+      password: hashedPassword,
+      binderData: {
+        notebooks: [],
+        sections: [],
+        pages: {},
+        activeNotebookId: '',
+        activeSectionId: '',
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    const result = await db.collection('users').insertOne(newUser);
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: result.insertedId, email, username },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    
+    // Return user (without password) + token
+    const { password: _, ...userWithoutPassword } = newUser;
+    
+    res.status(201).json({ 
+      success: true, 
+      token,
+      user: { ...userWithoutPassword, id: result.insertedId.toString() }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({ error: 'Failed to create account' });
+  }
+});
+
+// LOGIN: Authenticate user
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { emailOrUsername, password } = req.body;
+    
+    if (!emailOrUsername || !password) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+    
+    // Find user by email or username
+    const user = await db.collection('users').findOne({
+      $or: [
+        { email: emailOrUsername },
+        { username: emailOrUsername }
+      ]
+    });
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Check password
+    const isValidPassword = await comparePassword(password, user.password);
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, username: user.username },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+    
+    // Return user (without password) + token
+    const { password: _, ...userWithoutPassword } = user;
+    
+    res.json({
+      success: true,
+      token,
+      user: { ...userWithoutPassword, id: user._id.toString() }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
+// GET USER DATA: Protected route
+app.get('/api/user/data', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    
+    const user = await db.collection('users').findOne({ _id: new ObjectId(decoded.userId) });
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const { password: _, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword, binderData: user.binderData });
+  } catch (error) {
+    console.error('Get user data error:', error);
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
+// SAVE USER DATA: Protected route
+app.post('/api/user/data', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    
+    const { binderData } = req.body;
+    
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(decoded.userId) },
+      { 
+        $set: { 
+          binderData,
+          updatedAt: new Date().toISOString()
+        } 
+      }
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Save user data error:', error);
+    res.status(500).json({ error: 'Failed to save data' });
+  }
+});
 
   // 🌐 Serve Frontend (Production)
   const staticPath =
