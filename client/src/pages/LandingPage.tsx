@@ -83,14 +83,20 @@ export default function LandingPage() {
   const isLogin = mode === "login";
 
   const switchMode = (next: AuthMode) => {
-    if (next === mode || isFlipping) return;
-    setIsFlipping(true);
-    setTimeout(() => {
-      setMode(next);
-      setIsFlipping(false);
-      setUsername(""); setEmail(""); setPassword(""); setConfirm("");
-    }, 500);
-  };
+  alert(`🔄 Switching mode: ${mode} → ${next}`);
+  
+  if (next === mode || isFlipping) return;
+  setIsFlipping(true);
+  setTimeout(() => {
+    setMode(next);
+    setIsFlipping(false);
+    setUsername(""); 
+    setEmail(""); 
+    setPassword(""); 
+    setConfirm("");
+    alert(`✅ Mode changed to: ${next}`);
+  }, 500);
+};
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
