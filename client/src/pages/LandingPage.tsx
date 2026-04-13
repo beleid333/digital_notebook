@@ -80,6 +80,8 @@ export default function LandingPage() {
   const [sealPressed, setSealPressed] = useState(false);
   const [inkVisible, setInkVisible] = useState(false);
 
+  const isLogin = mode === "login";
+
   const switchMode = (next: AuthMode) => {
     if (next === mode || isFlipping) return;
     setIsFlipping(true);
@@ -93,44 +95,76 @@ export default function LandingPage() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
-  alert(`Login attempt: ${username} / ${password ? '***' : 'empty'}`);
-  
   try {
+    const API_URL = 'https://digital-notebook-ypfo.onrender.com/api';
+    
     if (mode === "login") {
-      alert("📡 Calling login API...");
-      
-      const API_URL = 'https://digital-notebook-ypfo.onrender.com/api'; // ⚠️ Replace with your actual URL
+      // ✅ Simple alert to confirm values
+      alert(`Login: "${username.trim()}" / "${password ? '***' : ''}"`);
       
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ emailOrUsername: username, password }),
+        body: JSON.stringify({ 
+          emailOrUsername: username.trim(), 
+          password: password.trim() 
+        }),
       });
       
-      alert(`Status: ${response.status}`);
-      
       const data = await response.json();
-      alert(`Response: ${JSON.stringify(data).substring(0, 150)}`);
       
       if (!response.ok) {
+        alert(`❌ ${data.error || 'Login failed'}`);
         throw new Error(data.error || 'Login failed');
       }
       
-      alert("✅ Success! Saving token...");
-      
-      // Save token manually since we bypassed context
+      // ✅ Save auth to localStorage
       localStorage.setItem('auth_token', data.token);
       localStorage.setItem('auth_user', JSON.stringify(data.user));
       
-      alert("🔁 Redirecting...");
+      alert("✅ Success! Opening notebook...");
+      setLocation('/notebook');
+      
+    } else {
+      // ✅ Registration mode
+      if (password !== confirm) {
+        alert("❌ Passwords don't match!");
+        return;
+      }
+      
+      alert(`Register: "${email.trim()}" / "${username.trim()}"`);
+      
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: email.trim(), 
+          username: username.trim(), 
+          password: password.trim() 
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        alert(`❌ ${data.error || 'Registration failed'}`);
+        throw new Error(data.error || 'Registration failed');
+      }
+      
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      
+      alert("✅ Account created! Opening notebook...");
       setLocation('/notebook');
     }
+    
   } catch (err: any) {
-    alert(`❌ Error: ${err.message}`);
+    console.error("Auth error:", err);
+    // Error already shown via alert above
   }
-};
-  const isLogin = mode === "login";
 
+};
+  
   return (
     <div className="landing-desk" style={{ backgroundImage: `url(${DESK_BG})` }}>
       <div className="landing-vignette" />
