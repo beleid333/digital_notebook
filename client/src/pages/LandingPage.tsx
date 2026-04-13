@@ -118,18 +118,41 @@ Confirm: ${confirm ? '***' : 'EMPTY'}`);
   
   try {
     if (mode === "login") {
-      console.log("📡 Sending login request...");
+      alert("📡 Sending login to backend...");
       await login(username, password);
-      console.log("✅ Login successful");
+      alert("✅ Login successful!");
     } else {
-      console.log("📡 Sending registration request...");
+      // ✅ ADD THIS DEBUG FOR REGISTRATION
+      alert("📡 Sending registration to backend...");
+      
       if (password !== confirm) {
-        console.error("❌ Passwords don't match!");
+        alert("❌ Passwords don't match!");
         throw new Error('Passwords do not match');
       }
-      console.log("Registration data:", { email, username, password });
+      
+      // Test the API call directly with fetch
+      const API_URL = import.meta.env.VITE_API_URL || 'https://digital-notebook-ypfo.onrender.com/api';
+      
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, username, password }),
+      });
+      
+      const data = await response.json();
+      
+      // ✅ SHOW THE RESPONSE IN AN ALERT
+      alert(`API Response:
+Status: ${response.status}
+Body: ${JSON.stringify(data).substring(0, 200)}...`);
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Registration failed');
+      }
+      
+      // If successful, continue with auth context
       await register(email, username, password);
-      console.log("✅ Registration successful");
+      alert("✅ Registration successful!");
     }
     
     setTimeout(() => {
@@ -138,6 +161,8 @@ Confirm: ${confirm ? '***' : 'EMPTY'}`);
     }, 600);
     
   } catch (err: any) {
+    // ✅ SHOW ERROR IN ALERT
+    alert(`❌ Error: ${err.message}`);
     console.error("❌ Auth error:", err.message);
     setSealPressed(false);
     setInkVisible(false);
