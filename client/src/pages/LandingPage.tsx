@@ -92,6 +92,18 @@ export default function LandingPage() {
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
+
+  // ✅ ADD THIS ALERT FOR DEBUGGING
+  alert(`Form submitted!
+Mode: ${mode}
+Email: ${email}
+Username: ${username}
+Password: ${password ? '***' : 'EMPTY'}
+Confirm: ${confirm ? '***' : 'EMPTY'}`);
+  
+  console.log("🔐 Form submitted");
+  console.log("Mode:", mode);
+  
   console.log("🔐 Form submitted");
   console.log("Mode:", mode);
   console.log("Form values:", { 
