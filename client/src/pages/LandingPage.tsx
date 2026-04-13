@@ -92,80 +92,41 @@ export default function LandingPage() {
 
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
-
-  // ✅ ADD THIS ALERT FOR DEBUGGING
-  alert(`Form submitted!
-Mode: ${mode}
-Email: ${email}
-Username: ${username}
-Password: ${password ? '***' : 'EMPTY'}
-Confirm: ${confirm ? '***' : 'EMPTY'}`);
   
-  console.log("🔐 Form submitted");
-  console.log("Mode:", mode);
-  
-  console.log("🔐 Form submitted");
-  console.log("Mode:", mode);
-  console.log("Form values:", { 
-    email, 
-    username, 
-    password, 
-    confirm 
-  });
-  
-  setSealPressed(true);
-  setInkVisible(true);
+  alert(`Login attempt: ${username} / ${password ? '***' : 'empty'}`);
   
   try {
     if (mode === "login") {
-      alert("📡 Sending login to backend...");
-      await login(username, password);
-      alert("✅ Login successful!");
-    } else {
-      // ✅ ADD THIS DEBUG FOR REGISTRATION
-      alert("📡 Sending registration to backend...");
+      alert("📡 Calling login API...");
       
-      if (password !== confirm) {
-        alert("❌ Passwords don't match!");
-        throw new Error('Passwords do not match');
-      }
+      const API_URL = 'https://digital-notebook-ypfo.onrender.com/api'; // ⚠️ Replace with your actual URL
       
-      // Test the API call directly with fetch
-      const API_URL = import.meta.env.VITE_API_URL || 'https://digital-notebook-ypfo.onrender.com/api';
-      
-      const response = await fetch(`${API_URL}/auth/register`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, username, password }),
+        body: JSON.stringify({ emailOrUsername: username, password }),
       });
       
-      const data = await response.json();
+      alert(`Status: ${response.status}`);
       
-      // ✅ SHOW THE RESPONSE IN AN ALERT
-      alert(`API Response:
-Status: ${response.status}
-Body: ${JSON.stringify(data).substring(0, 200)}...`);
+      const data = await response.json();
+      alert(`Response: ${JSON.stringify(data).substring(0, 150)}`);
       
       if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+        throw new Error(data.error || 'Login failed');
       }
       
-      // If successful, continue with auth context
-      await register(email, username, password);
-      alert("✅ Registration successful!");
-    }
-    
-    setTimeout(() => {
-      setSealPressed(false);
+      alert("✅ Success! Saving token...");
+      
+      // Save token manually since we bypassed context
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      
+      alert("🔁 Redirecting...");
       setLocation('/notebook');
-    }, 600);
-    
+    }
   } catch (err: any) {
-    // ✅ SHOW ERROR IN ALERT
     alert(`❌ Error: ${err.message}`);
-    console.error("❌ Auth error:", err.message);
-    setSealPressed(false);
-    setInkVisible(false);
   }
 };
   const isLogin = mode === "login";
