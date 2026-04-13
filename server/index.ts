@@ -19,8 +19,18 @@ async function startServer() {
   const server = createServer(app);
 
   // Middleware
-  app.use(cors());
-  app.use(express.json());
+app.use(cors({
+  origin: [
+    'http://localhost:3000',           // Local frontend dev
+    'https://velonotes.com',           // Production domain
+    'https://velonotes.pages.dev',     // Cloudflare Pages preview
+    'https://digital-notebook.pages.dev' // Old Cloudflare URL (if still used)
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
 
   // MongoDB Connection
   const uri = process.env.MONGODB_URI;
