@@ -1,5 +1,6 @@
 /**
  * BinderContext — Global State Management with MongoDB Sync
+ * FIXED: Now properly connects to AuthContext and uses user-specific endpoints
  */
 
 import {
@@ -20,9 +21,10 @@ import {
   type Page,
 } from "@/data/binderData";
 import { TAB_COLORS } from "@/components/TabBar";
+import { useAuth } from "./AuthContext";
 
-// 🔗 API Configuration
-const API_URL = import.meta.env.VITE_API_URL || "https://digital-notebook-ypfo.onrender.com/api";
+// ── API Configuration ──
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3002/api";
 const STORAGE_KEY = "digital-ring-binder-v1";
 
 interface BinderState {
@@ -40,20 +42,18 @@ interface BinderContextValue extends BinderState {
   addSection: (title: string) => void;
   deleteSection: (id: string) => void;
   updatePage: (page: Page) => void;
-
-renameNotebook: (notebookId: string, newName: string) => Promise<void>;
-deleteNotebook: (notebookId: string) => Promise<void>;
-
-
+  renameNotebook: (notebookId: string, newName: string) => Promise<void>;
+  deleteNotebook: (notebookId: string) => Promise<void>;
   activeNotebook: Notebook;
   activeSections: Section[];
   activeSection: Section;
   activePage: Page;
+  isInitialized: boolean;
 }
 
 const BinderContext = createContext<BinderContextValue | null>(null);
 
-// ── Default State ──────────────────────────────────────────────────────
+// ── Default State ──
 const DEFAULT_STATE: BinderState = {
   notebooks: NOTEBOOKS,
   sections: SECTIONS,
@@ -62,7 +62,7 @@ const DEFAULT_STATE: BinderState = {
   activeSectionId: SECTIONS[0].id,
 };
 
-// ── Data Validation ──────────────────────────────────────────────────────
+// ── Data Validation ──
 function isValidState(data: any): data is BinderState {
   return (
     data &&
@@ -74,44 +74,7 @@ function isValidState(data: any): data is BinderState {
   );
 }
 
-// ── API Functions ───────────────────────────────────────────────────────
-
-async function fetchFromBackend(): Promise<BinderState | null> {
-  try {
-    const response = await fetch(`${API_URL}/notes`);
-    if (!response.ok) throw new Error("Failed to fetch");
-    const data = await response.json();
-    
-    // Backend returns array, get first item
-    const item = Array.isArray(data) && data.length > 0 ? data[0] : data;
-    
-    // Validate structure
-    if (isValidState(item)) {
-      return item;
-    }
-    console.warn("⚠️ Backend data invalid, using defaults");
-    return null;
-  } catch (error) {
-    console.warn("⚠️ Backend fetch failed:", error);
-    return null;
-  }
-}
-
-async function saveToBackend(state: BinderState): Promise<void> {
-  try {
-    await fetch(`${API_URL}/notes`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(state),
-    });
-    console.log("✅ Synced to backend");
-  } catch (error) {
-    console.warn("⚠️ Backend save failed:", error);
-  }
-}
-
-// ── LocalStorage Fallback ──────────────────────────────────────────────
-
+// ── LocalStorage Fallback ──
 function loadFromLocalStorage(): BinderState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -131,56 +94,115 @@ function saveToLocalStorage(state: BinderState) {
   }
 }
 
-// ── Provider Component ─────────────────────────────────────────────────
-
+// ── Provider Component ──
 export function BinderProvider({ children }: { children: ReactNode }) {
-  // Start with defaults to avoid undefined errors
+  // ✅ Get auth state from AuthContext
+  const { token, isAuthenticated } = useAuth();
+  
   const [state, setState] = useState<BinderState>(DEFAULT_STATE);
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load state on mount
+  // ── Fetch user's binder data from server ──
+  const fetchUserBinderData = useCallback(async (): Promise<BinderState | null> => {
+    if (!token) return null;
+    
+    try {
+      const response = await fetch(`${API_URL}/user/data`, {
+        headers: { 
+          'Authorization': `Bearer ${token}` 
+        }
+      });
+      
+      if (!response.ok) {
+        console.warn("⚠️ Failed to fetch user data:", response.status);
+        return null;
+      }
+      
+      const data = await response.json();
+      
+      if (data.binderData && isValidState(data.binderData)) {
+        console.log("📦 Loaded from server (user-specific)");
+        return data.binderData;
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn("⚠️ Server fetch failed:", error);
+      return null;
+    }
+  }, [token]);
+
+  // ── Save user's binder data to server ──
+  const saveToServer = useCallback(async (newState: BinderState) => {
+    if (!token) return;
+    
+    try {
+      await fetch(`${API_URL}/user/data`, {
+        method: "POST",
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({ binderData: newState }),
+      });
+      console.log("✅ Synced to server");
+    } catch (error) {
+      console.warn("⚠️ Server save failed:", error);
+    }
+  }, [token]);
+
+  // ── Initialize: Load data when auth state changes ──
   useEffect(() => {
     let mounted = true;
 
     const initialize = async () => {
-      // Try backend first
-      const backendData = await fetchFromBackend();
+      setIsInitialized(false);
       
-      if (mounted) {
-        if (backendData && isValidState(backendData)) {
-          console.log("📦 Loaded from backend");
-          setState(backendData);
-          saveToLocalStorage(backendData);
-        } else {
-          // Fallback to localStorage
-          const localData = loadFromLocalStorage();
-          if (localData && isValidState(localData)) {
-            console.log("📦 Loaded from localStorage");
-            setState(localData);
-          }
-          // If both fail, we keep DEFAULT_STATE
+      // ✅ If logged in, fetch from server FIRST
+      if (isAuthenticated && token) {
+        const serverData = await fetchUserBinderData();
+        
+        if (mounted && serverData) {
+          setState(serverData);
+          saveToLocalStorage(serverData);
+          setIsInitialized(true);
+          return;
         }
-        setIsInitialized(true);
       }
+      
+      // Fallback to localStorage
+      const localData = loadFromLocalStorage();
+      if (mounted && localData) {
+        console.log("📦 Loaded from localStorage (fallback)");
+        setState(localData);
+        
+        // If logged in but server was empty, push local data to server
+        if (isAuthenticated && token) {
+          await saveToServer(localData);
+        }
+      }
+      // Otherwise keep DEFAULT_STATE
+      
+      if (mounted) setIsInitialized(true);
     };
 
     initialize();
     return () => { mounted = false; };
-  }, []);
+  }, [isAuthenticated, token, fetchUserBinderData, saveToServer]);
 
-  // Auto-sync to backend when state changes (debounced)
+  // ── Auto-sync to server when state changes (debounced) ──
   useEffect(() => {
-    if (!isInitialized) return;
+    if (!isInitialized || !isAuthenticated) return;
 
     const timer = setTimeout(() => {
-      saveToBackend(state);
+      saveToServer(state);
       saveToLocalStorage(state);
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [state, isInitialized]);
+  }, [state, isInitialized, isAuthenticated, saveToServer]);
 
-  // ── Derived values (with safety checks) ───────────────────────────────
+  // ── Derived values ──
   const activeNotebook =
     state.notebooks?.find((n) => n.id === state.activeNotebookId) ??
     state.notebooks?.[0] ??
@@ -205,8 +227,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       tapedImages: [],
     };
 
-  // ── Actions ──────────────────────────────────────────────────────────────
-
+  // ── Actions ──
   const selectNotebook = useCallback((id: string) => {
     setState((prev) => {
       const firstSection = prev.sections?.find((s) => s.notebookId === id);
@@ -227,7 +248,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     const sectionId = `sec-${nanoid(6)}`;
     const colorEntry = TAB_COLORS[Math.floor(Math.random() * TAB_COLORS.length)];
 
-    const newNotebook: Notebook = { id, title, color, spineAccent: color, emoji: "📓" };
+    const newNotebook: Notebook = { id, title, color, spineAccent: color, emoji: "📖" };
 
     const newSection: Section = {
       id: sectionId,
@@ -314,43 +335,38 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  // ✅ Rename a notebook
-const renameNotebook = async (notebookId: string, newName: string) => {
-  setState(prev => ({
-    ...prev,
-    notebooks: prev.notebooks.map(nb =>
-      nb.id === notebookId
-        ? { ...nb, title: newName.trim(), updatedAt: new Date().toISOString() }  // ✅ Use 'title' not 'name'
-        : nb
-    ),
-  }));
-  
-};
-
-// ✅ Delete a notebook (and all its sections/pages)
-const deleteNotebook = async (notebookId: string) => {
-  const notebookToDelete = state.notebooks.find(nb => nb.id === notebookId);
-  if (!notebookToDelete) return;
-  
-  // Find all sections that belong to this notebook
-  const sectionIdsToDelete = state.sections
-    .filter(s => s.notebookId === notebookId)
-    .map(s => s.id);
-  
-  setState(prev => ({
-    ...prev,
-    notebooks: prev.notebooks.filter(nb => nb.id !== notebookId),
-    sections: prev.sections.filter(s => !sectionIdsToDelete.includes(s.id)),
-    pages: Object.fromEntries(
-      Object.entries(prev.pages).filter(
-        ([sectionId]) => !sectionIdsToDelete.includes(sectionId)
-      )
-    ),
-    activeNotebookId: prev.activeNotebookId === notebookId ? '' : prev.activeNotebookId,
-    activeSectionId: sectionIdsToDelete.includes(prev.activeSectionId) ? '' : prev.activeSectionId,
-  }));
+  const renameNotebook = async (notebookId: string, newName: string) => {
+    setState(prev => ({
+      ...prev,
+      notebooks: prev.notebooks.map(nb =>
+        nb.id === notebookId
+          ? { ...nb, title: newName.trim(), updatedAt: new Date().toISOString() }
+          : nb
+      ),
+    }));
   };
 
+  const deleteNotebook = async (notebookId: string) => {
+    const notebookToDelete = state.notebooks.find(nb => nb.id === notebookId);
+    if (!notebookToDelete) return;
+    
+    const sectionIdsToDelete = state.sections
+      .filter(s => s.notebookId === notebookId)
+      .map(s => s.id);
+    
+    setState(prev => ({
+      ...prev,
+      notebooks: prev.notebooks.filter(nb => nb.id !== notebookId),
+      sections: prev.sections.filter(s => !sectionIdsToDelete.includes(s.id)),
+      pages: Object.fromEntries(
+        Object.entries(prev.pages).filter(
+          ([sectionId]) => !sectionIdsToDelete.includes(sectionId)
+        )
+      ),
+      activeNotebookId: prev.activeNotebookId === notebookId ? '' : prev.activeNotebookId,
+      activeSectionId: sectionIdsToDelete.includes(prev.activeSectionId) ? '' : prev.activeSectionId,
+    }));
+  };
 
   const updatePage = useCallback((page: Page) => {
     setState((prev) => ({
@@ -372,8 +388,8 @@ const deleteNotebook = async (notebookId: string) => {
     deleteSection,
     updatePage,
     renameNotebook,
-  deleteNotebook,
-  
+    deleteNotebook,
+    isInitialized,
   };
 
   return (
