@@ -1854,3 +1854,24 @@
   background: rgba(180,130,50,0.4);
   border-radius: 2px;
 }
+
+/* Show notebook actions on hover */
+.notebook-spine-wrapper:hover .notebook-spine-actions,
+.notebook-spine-wrapper.active .notebook-spine-actions {
+  opacity: 1 !important;
+}
+
+/* Show notebook spine actions on hover or when active */
+.notebook-spine-wrapper:hover .notebook-spine-actions,
+.notebook-spine-wrapper.active .notebook-spine-actions {
+  opacity: 1 !important;
+}
+
+/* Smooth transition for spine hover */
+.notebook-spine {
+  transition: transform 0.1s ease, opacity 0.1s ease;
+}
+
+.notebook-spine:hover:not(:disabled) {
+  transform: scale(1.02);
+}

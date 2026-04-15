@@ -16,21 +16,24 @@ export default function Home() {
   const [, setLocation] = useLocation();
   
   // ✅ ADD THIS: Get binder data from context
-  const {
-    notebooks,
-    activeNotebookId,
-    activeSections,
-    activeSectionId,
-    activeNotebook,
-    activeSection,
-    activePage,
-    selectNotebook,
-    selectSection,
-    addNotebook,
-    addSection,
-    deleteSection,
-    updatePage,
-  } = useBinder();
+const {
+  notebooks,
+  activeNotebookId,
+  activeSections,
+  activeSectionId,
+  activeNotebook,
+  activeSection,
+  activePage,
+  selectNotebook,
+  selectSection,
+  addNotebook,
+  addSection,
+  deleteSection,
+  updatePage,
+  renameNotebook,  // ✅ Added
+  deleteNotebook,  // ✅ Added
+} = useBinder();
+
   
   // ✅ Mobile detection (optional, for future use)
   const [isMobile, setIsMobile] = useState(false);
@@ -75,6 +78,8 @@ export default function Home() {
           activeNotebookId={activeNotebookId}
           onSelectNotebook={selectNotebook}
           onAddNotebook={addNotebook}
+          onRenameNotebook={renameNotebook}
+          onDeleteNotebook={deleteNotebook}
         />
 
         {/* ── Binder body ─────────────────────────────────────────────── */}

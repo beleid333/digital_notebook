@@ -40,6 +40,11 @@ interface BinderContextValue extends BinderState {
   addSection: (title: string) => void;
   deleteSection: (id: string) => void;
   updatePage: (page: Page) => void;
+
+renameNotebook: (notebookId: string, newName: string) => Promise<void>;
+deleteNotebook: (notebookId: string) => Promise<void>;
+
+
   activeNotebook: Notebook;
   activeSections: Section[];
   activeSection: Section;
@@ -309,6 +314,44 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // ✅ Rename a notebook
+const renameNotebook = async (notebookId: string, newName: string) => {
+  setState(prev => ({
+    ...prev,
+    notebooks: prev.notebooks.map(nb =>
+      nb.id === notebookId
+        ? { ...nb, title: newName.trim(), updatedAt: new Date().toISOString() }  // ✅ Use 'title' not 'name'
+        : nb
+    ),
+  }));
+  
+};
+
+// ✅ Delete a notebook (and all its sections/pages)
+const deleteNotebook = async (notebookId: string) => {
+  const notebookToDelete = state.notebooks.find(nb => nb.id === notebookId);
+  if (!notebookToDelete) return;
+  
+  // Find all sections that belong to this notebook
+  const sectionIdsToDelete = state.sections
+    .filter(s => s.notebookId === notebookId)
+    .map(s => s.id);
+  
+  setState(prev => ({
+    ...prev,
+    notebooks: prev.notebooks.filter(nb => nb.id !== notebookId),
+    sections: prev.sections.filter(s => !sectionIdsToDelete.includes(s.id)),
+    pages: Object.fromEntries(
+      Object.entries(prev.pages).filter(
+        ([sectionId]) => !sectionIdsToDelete.includes(sectionId)
+      )
+    ),
+    activeNotebookId: prev.activeNotebookId === notebookId ? '' : prev.activeNotebookId,
+    activeSectionId: sectionIdsToDelete.includes(prev.activeSectionId) ? '' : prev.activeSectionId,
+  }));
+  };
+
+
   const updatePage = useCallback((page: Page) => {
     setState((prev) => ({
       ...prev,
@@ -328,6 +371,9 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     addSection,
     deleteSection,
     updatePage,
+    renameNotebook,
+  deleteNotebook,
+  
   };
 
   return (

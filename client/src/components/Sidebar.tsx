@@ -7,12 +7,15 @@ import { useState, useEffect } from "react";
 import { Plus, BookOpen, Menu, X } from "lucide-react";
 import { useLocation } from "wouter";
 import type { Notebook } from "@/data/binderData";
+import { useBinder } from "@/contexts/BinderContext";
 
 interface SidebarProps {
   notebooks: Notebook[];
   activeNotebookId: string;
   onSelectNotebook: (id: string) => void;
   onAddNotebook: (title: string, color: string) => void;
+  onRenameNotebook?: (id: string, newName: string) => Promise<void>;
+  onDeleteNotebook?: (id: string) => Promise<void>;
 }
 
 const SPINE_COLORS = [
@@ -121,13 +124,28 @@ export default function Sidebar({
         {/* Notebook spines */}
         <div className="flex flex-col gap-2" style={{ padding: "0 10px", flex: 1 }}>
           {notebooks.map((nb) => (
-            <NotebookSpine
-              key={nb.id}
-              notebook={nb}
-              isActive={nb.id === activeNotebookId}
-              onClick={() => handleSelectNotebook(nb.id)}
-            />
-          ))}
+          <NotebookSpine
+          key={nb.id}
+          notebook={nb}
+          isActive={nb.id === activeNotebookId}
+          onClick={() => handleSelectNotebook(nb.id)}
+          
+          onRename={(id, newName) => {
+      // Call the context function if available
+      if (typeof window !== 'undefined') {
+        // We'll use a custom event or direct context call
+        const event = new CustomEvent('renameNotebook', { detail: { id, newName } });
+        window.dispatchEvent(event);
+      }
+    }}
+    onDelete={(id, name) => {
+      if (confirm(`Delete "${name}" and all its sections/pages?`)) {
+        const event = new CustomEvent('deleteNotebook', { detail: { id } });
+        window.dispatchEvent(event);
+      }
+    }}
+  />
+))}
         </div>
 
         {/* Decorative shelf edge at bottom of books */}
@@ -219,14 +237,155 @@ interface NotebookSpineProps {
   notebook: Notebook;
   isActive: boolean;
   onClick: () => void;
+  onRename: (id: string, currentName: string) => void;
+  onDelete: (id: string, name: string) => void;
 }
 
-function NotebookSpine({ notebook, isActive, onClick }: NotebookSpineProps) {
+function NotebookSpine({ notebook, isActive, onClick, onRename, onDelete }: NotebookSpineProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(notebook.title);
+
+  const handleRenameSubmit = () => {
+    if (editValue.trim() && editValue.trim() !== notebook.title) {
+      onRename(notebook.id, editValue.trim());
+    }
+    setIsEditing(false);
+  };
+
   return (
-    <button className={`notebook-spine ${isActive ? "active" : ""}`} onClick={onClick} style={{ background: `linear-gradient(90deg, ${notebook.spineAccent} 0%, ${notebook.color} 30%, ${notebook.color}EE 70%, ${notebook.spineAccent} 100%)`, height: 52, width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "0 10px 0 14px", border: "none", color: "white", textAlign: "left" }}>
-      <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{notebook.emoji}</span>
-      <span style={{ fontFamily: "'Libre Baskerville', serif", fontSize: 12, fontWeight: 700, letterSpacing: "0.02em", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textShadow: "0 1px 2px rgba(0,0,0,0.4)", flex: 1 }}>{notebook.title}</span>
-      {isActive && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.9)", boxShadow: "0 0 4px rgba(255,255,255,0.8)", flexShrink: 0 }} />}
-    </button>
+    <div 
+      className={`notebook-spine-wrapper ${isActive ? "active" : ""}`} 
+      style={{ position: "relative", width: "100%" }}
+    >
+      <button 
+        className={`notebook-spine ${isActive ? "active" : ""}`} 
+        onClick={onClick}
+        disabled={isEditing}
+        style={{ 
+          background: `linear-gradient(90deg, ${notebook.spineAccent} 0%, ${notebook.color} 30%, ${notebook.color}EE 70%, ${notebook.spineAccent} 100%)`, 
+          height: 52, 
+          width: "100%", 
+          display: "flex", 
+          alignItems: "center", 
+          gap: 8, 
+          padding: "0 10px 0 14px", 
+          border: "none", 
+          color: "white", 
+          textAlign: "left",
+          cursor: isEditing ? "default" : "pointer",
+          opacity: isEditing ? 0.7 : 1
+        }}
+      >
+        <span style={{ fontSize: 16, lineHeight: 1, flexShrink: 0 }}>{notebook.emoji}</span>
+        
+        {isEditing ? (
+          // ✏️ Edit Mode
+          <input
+            type="text"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleRenameSubmit}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleRenameSubmit();
+              if (e.key === 'Escape') {
+                setEditValue(notebook.title);
+                setIsEditing(false);
+              }
+            }}
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              border: "1px solid rgba(255,255,255,0.4)",
+              borderRadius: "3px",
+              padding: "4px 6px",
+              color: "white",
+              fontSize: "11px",
+              fontFamily: "'Libre Baskerville', serif",
+              fontWeight: 700,
+              width: "100%",
+              outline: "none"
+            }}
+          />
+        ) : (
+          // 👁️ View Mode
+          <span style={{ 
+            fontFamily: "'Libre Baskerville', serif", 
+            fontSize: 12, 
+            fontWeight: 700, 
+            letterSpacing: "0.02em", 
+            overflow: "hidden", 
+            textOverflow: "ellipsis", 
+            whiteSpace: "nowrap", 
+            textShadow: "0 1px 2px rgba(0,0,0,0.4)", 
+            flex: 1 
+          }}>
+            {notebook.title}
+          </span>
+        )}
+        
+        {isActive && !isEditing && (
+          <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.9)", boxShadow: "0 0 4px rgba(255,255,255,0.8)", flexShrink: 0 }} />
+        )}
+      </button>
+
+      {/* ✏️🗑️ Action Buttons (show on hover or active) */}
+      {!isEditing && (
+        <div className="notebook-spine-actions" style={{
+          position: "absolute",
+          right: "4px",
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "flex",
+          gap: "2px",
+          opacity: 0,
+          transition: "opacity 0.15s ease"
+        }}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setEditValue(notebook.title);
+              setIsEditing(true);
+            }}
+            style={{
+              background: "rgba(0,0,0,0.4)",
+              border: "none",
+              borderRadius: "3px",
+              color: "rgba(255,255,255,0.8)",
+              cursor: "pointer",
+              padding: "2px 4px",
+              fontSize: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+            title="Rename"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(notebook.id, notebook.title);
+            }}
+            style={{
+              background: "rgba(180,30,30,0.6)",
+              border: "none",
+              borderRadius: "3px",
+              color: "white",
+              cursor: "pointer",
+              padding: "2px 4px",
+              fontSize: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}
+            title="Delete"
+          >
+            🗑️
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

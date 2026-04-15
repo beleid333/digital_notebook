@@ -8,6 +8,52 @@ import cors from "cors";
 import * as dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import { hashPassword, comparePassword } from './models/User.js';
+// ── Type Definitions ──────────────────────────────────────────────────────
+interface NotebookDoc {
+  id: string;
+  title: string;
+  color: string;
+  spineAccent: string;
+  emoji: string;
+  sections?: string[];
+  updatedAt?: string;
+}
+
+interface SectionDoc {
+  id: string;
+  title: string;
+  notebookId: string;
+  tabColor: string;
+  tabColorDark: string;
+  tabTextColor: string;
+}
+
+interface PageDoc {
+  id: string;
+  sectionId: string;
+  title: string;
+  content: string;
+  stickyNotes: any[];
+  tapedImages: any[];
+}
+
+interface BinderDataDoc {
+  notebooks: NotebookDoc[];
+  sections: SectionDoc[];
+  pages: Record<string, PageDoc>;
+  activeNotebookId: string;
+  activeSectionId: string;
+}
+
+interface UserDoc {
+  _id: any;
+  email: string;
+  username: string;
+  password: string;
+  binderData: BinderDataDoc;
+  createdAt: string;
+  updatedAt: string;
+}
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || "your-fallback-secret-change-in-production ";
@@ -283,6 +329,127 @@ app.post('/api/user/data', async (req, res) => {
   } catch (error) {
     console.error('Save user data error:', error);
     res.status(500).json({ error: 'Failed to save data' });
+  }
+});
+
+// ── Notebook Management Routes ──────────────────────────────────────────────
+
+// Delete a notebook (and all its sections/pages)
+app.delete('/api/notes/notebook/:id', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    
+    // ✅ FIX: Use req.params.id (matches the route :id parameter)
+    const notebookId = req.params.id;
+    
+    const user = await db.collection('users').findOne({ 
+      _id: new ObjectId(decoded.userId) 
+    }) as UserDoc | null;
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // ✅ FIX: Explicitly type the sections array before using it
+    const sections: SectionDoc[] = user.binderData.sections;
+    
+    const sectionIdsToDelete = sections
+      .filter((section) => section.notebookId === notebookId)
+      .map((section) => section.id);
+    
+    // Remove notebook
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(decoded.userId) },
+      { 
+        $pull: { 'binderData.notebooks': { id: notebookId } },
+        $set: { 'binderData.updatedAt': new Date().toISOString() }
+      }
+    );
+    
+    // Remove sections
+    if (sectionIdsToDelete.length > 0) {
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(decoded.userId) },
+        { $pull: { 'binderData.sections': { id: { $in: sectionIdsToDelete } } } }
+      );
+    }
+    
+    // Remove pages for deleted sections
+    const pagesUpdate: Record<string, number> = {};
+    sectionIdsToDelete.forEach((sectionId) => {
+      pagesUpdate[`binderData.pages.${sectionId}`] = 1;
+    });
+    
+    if (Object.keys(pagesUpdate).length > 0) {
+      await db.collection('users').updateOne(
+        { _id: new ObjectId(decoded.userId) },
+        { $unset: pagesUpdate }
+      );
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete notebook error:', error);
+    res.status(500).json({ error: 'Failed to delete notebook' });
+  }
+});
+
+// Delete a section
+app.delete('/api/notes/section/:id', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    
+    const token = authHeader.substring(7);
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
+    
+    // ✅ FIX: Use req.params.id (matches the route :id parameter)
+    const sectionId = req.params.id;
+    
+    const user = await db.collection('users').findOne({ 
+      _id: new ObjectId(decoded.userId) 
+    }) as UserDoc | null;
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // ✅ FIX: Explicitly type the sections array
+    const sections: SectionDoc[] = user.binderData.sections;
+    
+    const section = sections.find((s) => s.id === sectionId);
+    
+    if (!section) {
+      return res.status(404).json({ error: 'Section not found' });
+    }
+    
+    // Remove section
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(decoded.userId) },
+      { 
+        $pull: { 'binderData.sections': { id: sectionId } },
+        $set: { 'binderData.updatedAt': new Date().toISOString() }
+      }
+    );
+    
+    // Remove all pages in this section
+    await db.collection('users').updateOne(
+      { _id: new ObjectId(decoded.userId) },
+      { $unset: { [`binderData.pages.${sectionId}`]: 1 } }
+    );
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete section error:', error);
+    res.status(500).json({ error: 'Failed to delete section' });
   }
 });
 
