@@ -1,15 +1,6 @@
 /**
- * Canvas — The Notebook Paper
+ * Canvas — The Notebook Paper (MOBILE FIXED)
  * Design: Tactile Realism Brutalist Skeuomorphism
- *
- * The main writing surface. Features:
- * - Lined paper with blue rule lines and red margin
- * - Dark binding strip on the left with metallic binder rings
- * - Editable page title in Caveat handwriting font
- * - Editable main content area
- * - Draggable sticky notes (click to place, drag to move)
- * - Taped photo images
- * - Toolbar for adding sticky notes and images
  */
 
 import { useRef, useState, useCallback, useEffect } from "react";
@@ -18,18 +9,17 @@ import {
   Image as ImageIcon,
   Trash2,
   RotateCcw,
-  Download,
 } from "lucide-react";
 import { nanoid } from "nanoid";
 import type { Page, StickyNote, TapedImage } from "@/data/binderData";
 
 const STICKY_COLORS = [
-  "#FEF08A", // yellow
-  "#FBCFE8", // pink
-  "#BAE6FD", // blue
-  "#BBF7D0", // green
-  "#FED7AA", // orange
-  "#E9D5FF", // purple
+  "#FEF08A",
+  "#FBCFE8",
+  "#BAE6FD",
+  "#BBF7D0",
+  "#FED7AA",
+  "#E9D5FF",
 ];
 
 const RING_POSITIONS = [80, 200, 320, 440, 560, 680];
@@ -38,6 +28,20 @@ interface CanvasProps {
   page: Page;
   onUpdatePage: (updated: Page) => void;
   sectionColor: string;
+}
+
+// Helper to get coordinates from both mouse and touch events
+function getEventCoords(e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) {
+  if ('touches' in e && e.touches.length > 0) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  if ('changedTouches' in e && e.changedTouches.length > 0) {
+    return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+  }
+  if ('clientX' in e) {
+    return { x: e.clientX, y: e.clientY };
+  }
+  return { x: 0, y: 0 };
 }
 
 export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps) {
@@ -57,32 +61,44 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
   const [imageUrl, setImageUrl] = useState("");
   const animatedNotes = useRef<Set<string>>(new Set());
 
-  // ── Title update ─────────────────────────────────────────────────────────
+  // Title update
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onUpdatePage({ ...page, title: e.target.value });
   };
 
-  // ── Content update ───────────────────────────────────────────────────────
+  // Content update
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onUpdatePage({ ...page, content: e.target.value });
   };
 
-  // ── Place sticky note on canvas click ────────────────────────────────────
-  const handleCanvasClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
+  // Place sticky note - WORKS ON MOBILE NOW
+  const handleCanvasInteraction = useCallback(
+    (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
       if (!placingSticky) return;
-      if ((e.target as HTMLElement).closest(".sticky-note")) return;
-      if ((e.target as HTMLElement).closest(".taped-image")) return;
+      
+      // Prevent default to avoid scrolling/zooming on mobile
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const target = e.target as HTMLElement;
+      if (target.closest(".sticky-note")) return;
+      if (target.closest(".taped-image")) return;
 
       const rect = canvasRef.current!.getBoundingClientRect();
-      const x = e.clientX - rect.left - 100;
-      const y = e.clientY - rect.top - 60;
+      const coords = getEventCoords(e);
+      
+      let x = coords.x - rect.left - 100;
+      let y = coords.y - rect.top - 60;
+
+      // Clamp to visible area
+      x = Math.max(10, Math.min(x, rect.width - 150));
+      y = Math.max(10, Math.min(y, rect.height - 150));
 
       const newNote: StickyNote = {
         id: nanoid(),
-        x: Math.max(70, Math.min(x, rect.width - 220)),
-        y: Math.max(10, Math.min(y, rect.height - 150)),
-        width: 200,
+        x: x,
+        y: y,
+        width: Math.min(200, rect.width - 40), // Responsive width on mobile
         height: 140,
         content: "",
         color: selectedStickyColor,
@@ -99,22 +115,25 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
     [placingSticky, page, onUpdatePage, selectedStickyColor]
   );
 
-  // ── Drag sticky notes ────────────────────────────────────────────────────
-  const handleMouseDown = useCallback(
-    (e: React.MouseEvent, id: string, type: "sticky" | "image") => {
+  // Start dragging - WORKS ON MOBILE NOW
+  const handleDragStart = useCallback(
+    (e: React.MouseEvent | React.TouchEvent, id: string, type: "sticky" | "image") => {
       if (editingNoteId === id) return;
       e.preventDefault();
+      e.stopPropagation();
+      
       const item =
         type === "sticky"
           ? page.stickyNotes.find((n) => n.id === id)
           : page.tapedImages.find((i) => i.id === id);
       if (!item) return;
 
+      const coords = getEventCoords(e);
       setDragging({
         id,
         type,
-        startX: e.clientX,
-        startY: e.clientY,
+        startX: coords.x,
+        startY: coords.y,
         origX: item.x,
         origY: item.y,
       });
@@ -122,12 +141,15 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
     [page, editingNoteId]
   );
 
+  // Handle move and end for both mouse and touch
   useEffect(() => {
     if (!dragging) return;
 
-    const handleMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - dragging.startX;
-      const dy = e.clientY - dragging.startY;
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      e.preventDefault();
+      const coords = getEventCoords(e);
+      const dx = coords.x - dragging.startX;
+      const dy = coords.y - dragging.startY;
 
       if (dragging.type === "sticky") {
         onUpdatePage({
@@ -150,17 +172,27 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
       }
     };
 
-    const handleMouseUp = () => setDragging(null);
+    const handleEnd = () => setDragging(null);
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+    // Mouse events
+    window.addEventListener("mousemove", handleMove, { passive: false });
+    window.addEventListener("mouseup", handleEnd);
+    
+    // Touch events
+    window.addEventListener("touchmove", handleMove, { passive: false });
+    window.addEventListener("touchend", handleEnd);
+    window.addEventListener("touchcancel", handleEnd);
+
     return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleMove);
+      window.removeEventListener("touchend", handleEnd);
+      window.removeEventListener("touchcancel", handleEnd);
     };
   }, [dragging, page, onUpdatePage]);
 
-  // ── Delete sticky note ───────────────────────────────────────────────────
+  // Delete sticky note
   const deleteNote = (id: string) => {
     onUpdatePage({
       ...page,
@@ -169,6 +201,7 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
     if (editingNoteId === id) setEditingNoteId(null);
   };
 
+  // Delete image
   const deleteImage = (id: string) => {
     onUpdatePage({
       ...page,
@@ -176,7 +209,7 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
     });
   };
 
-  // ── Update sticky note content ───────────────────────────────────────────
+  // Update sticky note content
   const updateNoteContent = (id: string, content: string) => {
     onUpdatePage({
       ...page,
@@ -186,7 +219,7 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
     });
   };
 
-  // ── Add taped image ──────────────────────────────────────────────────────
+  // Add taped image
   const handleAddImage = () => {
     if (!imageUrl.trim()) return;
     const newImage: TapedImage = {
@@ -205,11 +238,20 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
     setShowImageModal(false);
   };
 
-  // ── Clear all notes ──────────────────────────────────────────────────────
+  // Clear all notes
   const clearAllNotes = () => {
     onUpdatePage({ ...page, stickyNotes: [], tapedImages: [] });
     setEditingNoteId(null);
   };
+
+  // Get viewport width for responsive sizing
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handleResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const isMobile = viewportWidth < 768;
 
   return (
     <div
@@ -220,13 +262,13 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
         position: "relative",
       }}
     >
-      {/* ── Toolbar ─────────────────────────────────────────────────────── */}
+      {/* Toolbar */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 6,
-          padding: "6px 16px",
+          gap: isMobile ? 4 : 6,
+          padding: isMobile ? "4px 8px" : "6px 16px",
           background: "linear-gradient(180deg, #F0E8D8 0%, #E8DCC8 100%)",
           borderBottom: "1px solid #C0A880",
           boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
@@ -235,15 +277,15 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
         }}
       >
         {/* Sticky note color picker */}
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 2 : 4 }}>
           {STICKY_COLORS.map((c) => (
             <button
               key={c}
               onClick={() => setSelectedStickyColor(c)}
               title={`Sticky: ${c}`}
               style={{
-                width: 16,
-                height: 16,
+                width: isMobile ? 14 : 16,
+                height: isMobile ? 14 : 16,
                 borderRadius: 2,
                 background: c,
                 border:
@@ -276,18 +318,20 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
               ? `linear-gradient(180deg, ${selectedStickyColor} 0%, ${selectedStickyColor}CC 100%)`
               : undefined,
             borderColor: placingSticky ? "#A08040" : undefined,
+            fontSize: isMobile ? 10 : 12,
           }}
         >
-          <StickyNoteIcon size={12} />
-          {placingSticky ? "Click to place..." : "Add Note"}
+          <StickyNoteIcon size={isMobile ? 10 : 12} />
+          {isMobile ? (placingSticky ? "Tap..." : "Note") : (placingSticky ? "Click to place..." : "Add Note")}
         </button>
 
         <button
           className="toolbar-btn"
           onClick={() => setShowImageModal(true)}
+          style={{ fontSize: isMobile ? 10 : 12 }}
         >
-          <ImageIcon size={12} />
-          Tape Photo
+          <ImageIcon size={isMobile ? 10 : 12} />
+          {isMobile ? "Photo" : "Tape Photo"}
         </button>
 
         <div style={{ flex: 1 }} />
@@ -296,10 +340,10 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
           className="toolbar-btn"
           onClick={clearAllNotes}
           title="Clear all sticky notes and images"
-          style={{ color: "#8B2020" }}
+          style={{ color: "#8B2020", fontSize: isMobile ? 10 : 12 }}
         >
-          <RotateCcw size={12} />
-          Clear Notes
+          <RotateCcw size={isMobile ? 10 : 12} />
+          {isMobile ? "Clear" : "Clear Notes"}
         </button>
 
         <div className="page-number">
@@ -307,7 +351,7 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
         </div>
       </div>
 
-      {/* ── Paper + Binding ──────────────────────────────────────────────── */}
+      {/* Paper + Binding */}
       <div
         style={{
           display: "flex",
@@ -316,23 +360,25 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
           position: "relative",
         }}
       >
-        {/* Binding strip */}
-        <div className="binding-strip" style={{ flexShrink: 0 }}>
-          {RING_POSITIONS.map((pos) => (
-            <div
-              key={pos}
-              className="binder-ring"
-              style={{
-                position: "absolute",
-                top: pos,
-                left: "50%",
-                transform: "translateX(-50%)",
-              }}
-            />
-          ))}
-        </div>
+        {/* Binding strip - hidden on small mobile */}
+        {!isMobile && (
+          <div className="binding-strip" style={{ flexShrink: 0 }}>
+            {RING_POSITIONS.map((pos) => (
+              <div
+                key={pos}
+                className="binder-ring"
+                style={{
+                  position: "absolute",
+                  top: pos,
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                }}
+              />
+            ))}
+          </div>
+        )}
 
-        {/* Paper */}
+        {/* Paper - MOBILE TOUCH SUPPORT */}
         <div
           ref={canvasRef}
           className={`notebook-paper paper-scroll paper-fade-in ${
@@ -343,13 +389,18 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
             overflowY: "auto",
             overflowX: "hidden",
             position: "relative",
-            padding: "24px 32px 80px 72px",
+            padding: isMobile ? "16px 12px 80px 12px" : "24px 32px 80px 72px",
             cursor: placingSticky ? "crosshair" : "default",
+            // Prevent pull-to-refresh and zoom on mobile when placing
+            touchAction: placingSticky ? "none" : "pan-y",
           }}
-          onClick={handleCanvasClick}
+          // Mouse events
+          onClick={handleCanvasInteraction}
+          // Touch events for mobile
+          onTouchStart={handleCanvasInteraction}
         >
-          {/* Hole punch shadows on left */}
-          {RING_POSITIONS.map((pos) => (
+          {/* Hole punch shadows - hidden on mobile */}
+          {!isMobile && RING_POSITIONS.map((pos) => (
             <div
               key={pos}
               style={{
@@ -387,68 +438,74 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
             className="page-content-textarea"
             value={page.content}
             onChange={handleContentChange}
-            placeholder="Start writing... or click anywhere to add a sticky note."
+            placeholder="Start writing... or tap anywhere to add a sticky note."
             style={{
-              minHeight: 400,
+              minHeight: isMobile ? 200 : 400,
               display: "block",
             }}
             onClick={(e) => e.stopPropagation()}
           />
 
-          {/* Sticky notes */}
+          {/* Sticky notes - MOBILE TOUCH SUPPORT */}
           {page.stickyNotes.map((note) => (
             <StickyNoteComponent
               key={note.id}
               note={note}
               isEditing={editingNoteId === note.id}
-              onMouseDown={(e) => handleMouseDown(e, note.id, "sticky")}
+              onMouseDown={(e) => handleDragStart(e, note.id, "sticky")}
+              onTouchStart={(e) => handleDragStart(e, note.id, "sticky")}
               onDoubleClick={() => setEditingNoteId(note.id)}
               onBlur={() => setEditingNoteId(null)}
               onContentChange={(content) => updateNoteContent(note.id, content)}
               onDelete={() => deleteNote(note.id)}
               isNew={!animatedNotes.current.has(note.id)}
               onAnimated={() => animatedNotes.current.add(note.id)}
+              isMobile={isMobile}
             />
           ))}
 
-          {/* Taped images */}
+          {/* Taped images - MOBILE TOUCH SUPPORT */}
           {page.tapedImages.map((img) => (
             <TapedImageComponent
               key={img.id}
               image={img}
-              onMouseDown={(e) => handleMouseDown(e, img.id, "image")}
+              onMouseDown={(e) => handleDragStart(e, img.id, "image")}
+              onTouchStart={(e) => handleDragStart(e, img.id, "image")}
               onDelete={() => deleteImage(img.id)}
+              isMobile={isMobile}
             />
           ))}
 
-          {/* Placing hint */}
+          {/* Placing hint - MOBILE FRIENDLY TEXT */}
           {placingSticky && (
             <div
               style={{
                 position: "fixed",
-                bottom: 24,
+                bottom: isMobile ? 60 : 24,
                 left: "50%",
                 transform: "translateX(-50%)",
-                background: "rgba(40,20,0,0.85)",
+                background: "rgba(40,20,0,0.9)",
                 color: "white",
-                padding: "8px 18px",
+                padding: isMobile ? "10px 20px" : "8px 18px",
                 borderRadius: 20,
                 fontFamily: "'Libre Baskerville', serif",
-                fontSize: 12,
+                fontSize: isMobile ? 14 : 12,
                 fontWeight: 700,
                 letterSpacing: "0.04em",
                 pointerEvents: "none",
                 zIndex: 500,
                 boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+                maxWidth: "90vw",
+                textAlign: "center",
               }}
             >
-              Click anywhere on the paper to place your note
+              {isMobile ? "Tap anywhere on the paper to place your note" : "Click anywhere on the paper to place your note"}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Add Image Modal ──────────────────────────────────────────────── */}
+      {/* Add Image Modal */}
       {showImageModal && (
         <div className="modal-overlay" onClick={() => setShowImageModal(false)}>
           <div className="modal-box" onClick={(e) => e.stopPropagation()}>
@@ -507,8 +564,7 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
                 fontStyle: "italic",
               }}
             >
-              Tip: Use any publicly accessible image URL. The photo will appear
-              taped to the paper with a slight rotation.
+              Tip: Use any publicly accessible image URL.
             </p>
 
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
@@ -547,18 +603,19 @@ export default function Canvas({ page, onUpdatePage, sectionColor }: CanvasProps
   );
 }
 
-// ─── Sticky Note Sub-component ────────────────────────────────────────────────
-
+// Sticky Note Sub-component - MOBILE TOUCH SUPPORT
 interface StickyNoteProps {
   note: StickyNote;
   isEditing: boolean;
   isNew: boolean;
   onMouseDown: (e: React.MouseEvent) => void;
+  onTouchStart: (e: React.TouchEvent) => void;
   onDoubleClick: () => void;
   onBlur: () => void;
   onContentChange: (content: string) => void;
   onDelete: () => void;
   onAnimated: () => void;
+  isMobile: boolean;
 }
 
 function StickyNoteComponent({
@@ -566,11 +623,13 @@ function StickyNoteComponent({
   isEditing,
   isNew,
   onMouseDown,
+  onTouchStart,
   onDoubleClick,
   onBlur,
   onContentChange,
   onDelete,
   onAnimated,
+  isMobile,
 }: StickyNoteProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -586,21 +645,31 @@ function StickyNoteComponent({
       style={{
         left: note.x,
         top: note.y,
-        width: note.width,
-        height: note.height,
+        width: isMobile ? Math.min(note.width, 160) : note.width,
+        height: isMobile ? Math.min(note.height, 120) : note.height,
         backgroundColor: note.color,
         transform: `rotate(${note.rotation}deg)`,
         ["--rotation" as string]: `${note.rotation}deg`,
         color: "#2A2A2A",
         zIndex: isEditing ? 150 : undefined,
+        // Prevent text selection while dragging on mobile
+        WebkitUserSelect: isEditing ? "text" : "none",
+        userSelect: isEditing ? "text" : "none",
       }}
       onMouseDown={isEditing ? undefined : onMouseDown}
+      onTouchStart={isEditing ? undefined : onTouchStart}
+      onClick={(e) => {
+        if (!isEditing) {
+          e.stopPropagation();
+        }
+      }}
       onDoubleClick={onDoubleClick}
       onAnimationEnd={onAnimated}
     >
-      {/* Delete button */}
+      {/* Delete button - always visible on mobile for easier access */}
       <button
         onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
         onClick={(e) => {
           e.stopPropagation();
           onDelete();
@@ -609,8 +678,8 @@ function StickyNoteComponent({
           position: "absolute",
           top: 3,
           right: 4,
-          width: 16,
-          height: 16,
+          width: isMobile ? 20 : 16,
+          height: isMobile ? 20 : 16,
           borderRadius: "50%",
           background: "rgba(0,0,0,0.15)",
           border: "none",
@@ -620,12 +689,13 @@ function StickyNoteComponent({
           cursor: "pointer",
           color: "rgba(0,0,0,0.5)",
           padding: 0,
-          opacity: 0,
+          opacity: isMobile ? 0.8 : 0,
           transition: "opacity 0.1s ease",
+          zIndex: 10,
         }}
         className="note-delete-btn"
       >
-        <Trash2 size={8} />
+        <Trash2 size={isMobile ? 10 : 8} />
       </button>
 
       {isEditing ? (
@@ -642,11 +712,11 @@ function StickyNoteComponent({
             width: "100%",
             height: "calc(100% - 8px)",
             fontFamily: "'Caveat', cursive",
-            fontSize: 16,
-            lineHeight: 1.5,
+            fontSize: isMobile ? 14 : 16,
+            lineHeight: 1.4,
             color: "#2A2A2A",
             cursor: "text",
-            padding: 0,
+            padding: "4px",
           }}
           placeholder="Write your note..."
         />
@@ -654,25 +724,30 @@ function StickyNoteComponent({
         <div
           style={{
             fontFamily: "'Caveat', cursive",
-            fontSize: 16,
-            lineHeight: 1.5,
+            fontSize: isMobile ? 14 : 16,
+            lineHeight: 1.4,
             color: "#2A2A2A",
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             height: "100%",
             overflow: "hidden",
+            padding: "4px",
           }}
-          title="Double-click to edit"
+          title="Double-tap to edit"
         >
           {note.content || (
             <span style={{ color: "rgba(0,0,0,0.3)", fontStyle: "italic" }}>
-              Double-click to edit...
+              Double-tap to edit...
             </span>
           )}
         </div>
       )}
 
       <style>{`
+        .sticky-note:hover .note-delete-btn,
+        .sticky-note .note-delete-btn {
+          opacity: ${isMobile ? '0.8' : '0'} !important;
+        }
         .sticky-note:hover .note-delete-btn {
           opacity: 1 !important;
         }
@@ -681,15 +756,16 @@ function StickyNoteComponent({
   );
 }
 
-// ─── Taped Image Sub-component ────────────────────────────────────────────────
-
+// Taped Image Sub-component - MOBILE TOUCH SUPPORT
 interface TapedImageProps {
   image: TapedImage;
   onMouseDown: (e: React.MouseEvent) => void;
+  onTouchStart: (e: React.TouchEvent) => void;
   onDelete: () => void;
+  isMobile: boolean;
 }
 
-function TapedImageComponent({ image, onMouseDown, onDelete }: TapedImageProps) {
+function TapedImageComponent({ image, onMouseDown, onTouchStart, onDelete, isMobile }: TapedImageProps) {
   const [hovered, setHovered] = useState(false);
 
   return (
@@ -699,15 +775,20 @@ function TapedImageComponent({ image, onMouseDown, onDelete }: TapedImageProps) 
         left: image.x,
         top: image.y,
         transform: `rotate(${image.rotation}deg)`,
-        width: image.width + 16,
+        width: (isMobile ? Math.min(image.width, 150) : image.width) + 16,
+        WebkitUserSelect: "none",
+        userSelect: "none",
       }}
       onMouseDown={onMouseDown}
+      onTouchStart={onTouchStart}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      {hovered && (
+      {/* Delete button - always visible on mobile */}
+      {(hovered || isMobile) && (
         <button
           onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();
@@ -716,8 +797,8 @@ function TapedImageComponent({ image, onMouseDown, onDelete }: TapedImageProps) 
             position: "absolute",
             top: -8,
             right: -8,
-            width: 20,
-            height: 20,
+            width: isMobile ? 24 : 20,
+            height: isMobile ? 24 : 20,
             borderRadius: "50%",
             background: "#DC2626",
             border: "2px solid white",
@@ -731,7 +812,7 @@ function TapedImageComponent({ image, onMouseDown, onDelete }: TapedImageProps) 
             boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
           }}
         >
-          <Trash2 size={10} />
+          <Trash2 size={isMobile ? 12 : 10} />
         </button>
       )}
       <img
@@ -743,6 +824,7 @@ function TapedImageComponent({ image, onMouseDown, onDelete }: TapedImageProps) 
           objectFit: "cover",
           userSelect: "none",
           pointerEvents: "none",
+          WebkitUserDrag: "none",
         }}
         draggable={false}
       />
