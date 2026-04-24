@@ -34,6 +34,8 @@ export default function Sidebar({
   activeNotebookId,
   onSelectNotebook,
   onAddNotebook,
+  onRenameNotebook,
+  onDeleteNotebook,
 }: SidebarProps) {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -130,20 +132,12 @@ export default function Sidebar({
           isActive={nb.id === activeNotebookId}
           onClick={() => handleSelectNotebook(nb.id)}
           
-          onRename={(id, newName) => {
-      // Call the context function if available
-      if (typeof window !== 'undefined') {
-        // We'll use a custom event or direct context call
-        const event = new CustomEvent('renameNotebook', { detail: { id, newName } });
-        window.dispatchEvent(event);
-      }
-    }}
-    onDelete={(id, name) => {
-      if (confirm(`Delete "${name}" and all its sections/pages?`)) {
-        const event = new CustomEvent('deleteNotebook', { detail: { id } });
-        window.dispatchEvent(event);
-      }
-    }}
+          onRename={(id, newName) => onRenameNotebook?.(id, newName)}
+          onDelete={(id, name) => {
+            if (confirm(`Delete "${name}" and all its sections/pages?`)) {
+              onDeleteNotebook?.(id);
+            }
+          }}
   />
 ))}
         </div>

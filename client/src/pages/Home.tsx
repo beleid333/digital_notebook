@@ -29,6 +29,7 @@ const {
   addNotebook,
   addSection,
   deleteSection,
+  renameSection,
   updatePage,
   renameNotebook,  // ✅ Added
   deleteNotebook,  // ✅ Added
@@ -115,6 +116,7 @@ const {
               onSelectSection={selectSection}
               onAddSection={addSection}
               onDeleteSection={deleteSection}
+              onRenameSection={renameSection}
             />
           </div>
 

@@ -1,6 +1,5 @@
 /**
  * BinderContext — Global State Management with MongoDB Sync
- * FIXED: Now properly connects to AuthContext and uses user-specific endpoints
  */
 
 import {
@@ -41,6 +40,7 @@ interface BinderContextValue extends BinderState {
   addNotebook: (title: string, color: string) => void;
   addSection: (title: string) => void;
   deleteSection: (id: string) => void;
+  renameSection: (id: string, newTitle: string) => void;
   updatePage: (page: Page) => void;
   renameNotebook: (notebookId: string, newName: string) => Promise<void>;
   deleteNotebook: (notebookId: string) => Promise<void>;
@@ -96,7 +96,6 @@ function saveToLocalStorage(state: BinderState) {
 
 // ── Provider Component ──
 export function BinderProvider({ children }: { children: ReactNode }) {
-  // ✅ Get auth state from AuthContext
   const { token, isAuthenticated } = useAuth();
   
   const [state, setState] = useState<BinderState>(DEFAULT_STATE);
@@ -145,7 +144,6 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         },
         body: JSON.stringify({ binderData: newState }),
       });
-      console.log("✅ Synced to server");
     } catch (error) {
       console.warn("⚠️ Server save failed:", error);
     }
@@ -158,7 +156,6 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     const initialize = async () => {
       setIsInitialized(false);
       
-      // ✅ If logged in, fetch from server FIRST
       if (isAuthenticated && token) {
         const serverData = await fetchUserBinderData();
         
@@ -170,18 +167,11 @@ export function BinderProvider({ children }: { children: ReactNode }) {
         }
       }
       
-      // Fallback to localStorage
       const localData = loadFromLocalStorage();
       if (mounted && localData) {
         console.log("📦 Loaded from localStorage (fallback)");
         setState(localData);
-        
-        // If logged in but server was empty, push local data to server
-        if (isAuthenticated && token) {
-          await saveToServer(localData);
-        }
       }
-      // Otherwise keep DEFAULT_STATE
       
       if (mounted) setIsInitialized(true);
     };
@@ -234,7 +224,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
       return {
         ...prev,
         activeNotebookId: id,
-        activeSectionId: firstSection?.id ?? prev.activeSectionId,
+        activeSectionId: firstSection?.id ?? prev.activeSectionId ?? "",
       };
     });
   }, []);
@@ -335,6 +325,15 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const renameSection = useCallback((id: string, newTitle: string) => {
+    setState((prev) => ({
+      ...prev,
+      sections: (prev.sections ?? []).map((s) =>
+        s.id === id ? { ...s, title: newTitle.trim() } : s
+      ),
+    }));
+  }, []);
+
   const renameNotebook = async (notebookId: string, newName: string) => {
     setState(prev => ({
       ...prev,
@@ -347,25 +346,24 @@ export function BinderProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteNotebook = async (notebookId: string) => {
-    const notebookToDelete = state.notebooks.find(nb => nb.id === notebookId);
-    if (!notebookToDelete) return;
-    
-    const sectionIdsToDelete = state.sections
-      .filter(s => s.notebookId === notebookId)
-      .map(s => s.id);
-    
-    setState(prev => ({
-      ...prev,
-      notebooks: prev.notebooks.filter(nb => nb.id !== notebookId),
-      sections: prev.sections.filter(s => !sectionIdsToDelete.includes(s.id)),
-      pages: Object.fromEntries(
-        Object.entries(prev.pages).filter(
-          ([sectionId]) => !sectionIdsToDelete.includes(sectionId)
-        )
-      ),
-      activeNotebookId: prev.activeNotebookId === notebookId ? '' : prev.activeNotebookId,
-      activeSectionId: sectionIdsToDelete.includes(prev.activeSectionId) ? '' : prev.activeSectionId,
-    }));
+    setState(prev => {
+      const sectionIdsToDelete = prev.sections
+        .filter(s => s.notebookId === notebookId)
+        .map(s => s.id);
+      
+      return {
+        ...prev,
+        notebooks: prev.notebooks.filter(nb => nb.id !== notebookId),
+        sections: prev.sections.filter(s => !sectionIdsToDelete.includes(s.id)),
+        pages: Object.fromEntries(
+          Object.entries(prev.pages).filter(
+            ([sectionId]) => !sectionIdsToDelete.includes(sectionId)
+          )
+        ),
+        activeNotebookId: prev.activeNotebookId === notebookId ? '' : prev.activeNotebookId,
+        activeSectionId: sectionIdsToDelete.includes(prev.activeSectionId) ? '' : prev.activeSectionId,
+      };
+    });
   };
 
   const updatePage = useCallback((page: Page) => {
@@ -386,6 +384,7 @@ export function BinderProvider({ children }: { children: ReactNode }) {
     addNotebook,
     addSection,
     deleteSection,
+    renameSection,
     updatePage,
     renameNotebook,
     deleteNotebook,
